@@ -1,0 +1,21 @@
+{
+  "name": "kenshin-games-site",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "KENSHIN GAMES 公式サイト(https://kenshin-games.jp/)",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "serve": "python3 -m http.server 8090 --directory site",
+    "test": "node tools/e2e/site.mjs",
+    "test:csp": "node tools/e2e/site-csp.mjs",
+    "deploy": "npm run build && npx wrangler pages deploy site --project-name kenshin-games --branch main"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.16.0",
+    "subset-font": "^2.9.0"
+  }
+}

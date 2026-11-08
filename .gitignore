@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# 確認用のスクショ
+tools/e2e/shots/
+.wrangler/
+.DS_Store
