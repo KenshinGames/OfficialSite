@@ -12,6 +12,7 @@ KENSHIN GAMES の公式ホームページ(https://kenshin-games.jp/)。Cloudflar
 | `tools/build.mjs` | サイトを作るスクリプト。ページの文面(ゲーム紹介 `FEATURES`・ニュース `NEWS`・よくある質問 `FAQ`・接待麻雀の `SETTAI_*`)もここ |
 | `tools/style.css` | 見た目(`site/style.css` に写す) |
 | `tools/fonts/` | 見出しのフォント Dela Gothic One(使う文字だけに絞って `site/fonts/` に入れる) |
+| `tools/image-sources.json` | 縮めた画像の元(sha1)と大きさの記録。元が変わっていなければ前の画像をそのまま使う(Mac の sips とクラウドの ImageMagick で画像が作り直されて変わらないように)。build が書くのでコミットする |
 | `tools/e2e/` | 確認のスクリプト(スクショは `tools/e2e/shots/`。git 管理外) |
 | `site/` | できあがったサイト(公開する中身。作り直したら一緒にコミットする) |
 | `docs/website.md` | ドメイン・メール・公開の手順と、更新するときにどこを直すか |

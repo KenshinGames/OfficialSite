@@ -36,6 +36,17 @@ if (!fs.existsSync(RUGBY_DIR + 'src/legal.ts')) {
 const legal = await import(pathToFileURL(RUGBY_DIR + 'src/legal.ts').href);
 const pkg = JSON.parse(fs.readFileSync(RUGBY_DIR + 'package.json', 'utf8'));
 const out = root + 'site/';
+
+/**
+ * 縮めた画像の使い回し。元の画像と大きさが前と同じなら、前に作った画像をそのまま使う(作り直さない)。
+ * Mac(sips)とクラウドの作業環境(ImageMagick)では同じ元でも中身が少し変わり、作るたびに画像と ?v= の番号が変わってしまうため。
+ * 記録は tools/image-sources.json(出力先 → 元の画像の sha1 と大きさ)。元を差し替えれば作り直す
+ */
+const IMAGE_SOURCES = root + 'tools/image-sources.json';
+const prevSources = fs.existsSync(IMAGE_SOURCES) ? JSON.parse(fs.readFileSync(IMAGE_SOURCES, 'utf8')) : {};
+const nextSources = {};
+const prevImages = new Map();
+for (const dst of Object.keys(prevSources)) if (fs.existsSync(out + dst)) prevImages.set(dst, fs.readFileSync(out + dst));
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out + 'img', { recursive: true });
 
@@ -67,16 +78,24 @@ const has = (cmd) => {
 const IMAGE_TOOL = has('sips') ? 'sips' : has('magick') ? 'magick' : has('convert') ? 'convert' : '';
 if (!IMAGE_TOOL) throw new Error('画像を縮める sips(Mac)か ImageMagick(magick / convert)が必要です');
 
+/** 元と大きさが前と同じなら前の画像を書き、ちがえば make() で作る */
+const reuse = (src, dst, size, make) => {
+  const key = `${createHash('sha1').update(fs.readFileSync(src)).digest('hex')}:${size}`;
+  nextSources[dst] = key;
+  if (prevSources[dst] === key && prevImages.has(dst)) fs.writeFileSync(out + dst, prevImages.get(dst));
+  else make();
+};
+
 /** 縮小して JPEG に(長い辺 px) */
-const jpeg = (src, dst, width) =>
+const jpeg = (src, dst, width) => reuse(src, dst, width, () =>
   IMAGE_TOOL === 'sips'
     ? execFileSync('sips', ['-Z', String(width), '-s', 'format', 'jpeg', '-s', 'formatOptions', '80', src, '--out', out + dst], { stdio: 'ignore' })
-    : execFileSync(IMAGE_TOOL, [src, '-resize', `${width}x${width}`, '-quality', '80', out + dst], { stdio: 'ignore' });
+    : execFileSync(IMAGE_TOOL, [src, '-resize', `${width}x${width}`, '-quality', '80', out + dst], { stdio: 'ignore' }));
 /** 正方形の PNG に(px) */
-const png = (src, dst, size) =>
+const png = (src, dst, size) => reuse(src, dst, size, () =>
   IMAGE_TOOL === 'sips'
     ? execFileSync('sips', ['-z', String(size), String(size), src, '--out', out + dst], { stdio: 'ignore' })
-    : execFileSync(IMAGE_TOOL, [src, '-resize', `${size}x${size}!`, out + dst], { stdio: 'ignore' });
+    : execFileSync(IMAGE_TOOL, [src, '-resize', `${size}x${size}!`, out + dst], { stdio: 'ignore' }));
 
 jpeg(RUGBY_DIR + 'public/title/keyvisual.jpg', 'img/keyvisual.jpg', 1672);
 const SCREENS = ['match', 'gacha', 'formation', 'squad', 'title'];
@@ -240,6 +259,8 @@ const SETTAI_FEATURES = [
 
 /** ニュース。game: 'settai' は接待麻雀のページにも出す(トップにはすべて出す) */
 const NEWS = [
+  { date: '2026.11.16', text: `バージョン 1.4.0 を配信しました。いつでも引ける「プレミアムガチャ」が登場し、期間限定のピックアップガチャは 2 週間ごとに入れ替わります。守りの戦術「詰める / 流す」や、体の重さを感じる選手の動きも加わりました。` },
+  { date: '2026.11.16', game: 'settai', text: `「${SETTAI}」のバージョン 1.4.0 を配信しました。上司がリーチすると差し込みの候補を教える「接待のヒント」が加わり、上司から和了れるときは注意が出るようになりました。`, href: SETTAI_PATH.slice(1) },
   { date: '2026.10.30', game: 'settai', text: `「${SETTAI}」のバージョン 1.3.0 を配信しました。相方と打つほど親しくなり、仕事帰りの話が読める「寄り道」と、送別会・暑気払い・社員旅行の季節のイベントが加わりました。`, href: SETTAI_PATH.slice(1) },
   { date: '2026.10.29', game: 'settai', text: `新作「${SETTAI}」を App Store で配信開始しました。上司を勝たせて出世する、接待しながら打つ麻雀ゲームです。`, href: SETTAI_PATH.slice(1) },
   { date: '2026.10.24', game: 'settai', text: `新作「${SETTAI}」を App Store にて配信予定です。上司を勝たせて出世する、接待しながら打つ麻雀ゲームです。`, href: SETTAI_PATH.slice(1) },
@@ -589,6 +610,8 @@ fs.writeFileSync(
   Strict-Transport-Security: max-age=15552000
 `,
 );
+
+fs.writeFileSync(IMAGE_SOURCES, JSON.stringify(nextSources, null, 2) + '\n');
 
 console.log(`site/ を作りました(v${pkg.version})。トップ・サポート・規約 3 ページ・${SETTAI}の紹介とプライバシーポリシー・404`);
 const missing = legal.missingLegalFields();
